@@ -1,0 +1,143 @@
+package SMA_BusquedaMoviles.dominio;
+
+import jade.core.Agent;
+import jade.core.AID;
+import jade.core.behaviours.CyclicBehaviour;
+import jade.core.behaviours.SimpleBehaviour;
+import jade.lang.acl.ACLMessage;
+import jade.lang.acl.MessageTemplate;
+import jade.domain.FIPANames;
+import jade.proto.AchieveREInitiator;
+import java.util.ArrayList;
+import java.util.List;
+
+public class Buscador extends Agent {
+	private ArrayList<Movil> todos;
+	private int numeroRespuestas;
+	private boolean inicio;
+
+	private class ComportamientoSolicitud extends CyclicBehaviour {
+		MessageTemplate filtroAgente;
+
+		public void onStart() {
+			inicio = true;
+			filtroAgente = MessageTemplate.MatchSender(new AID("Cliente", AID.ISLOCALNAME));
+		}
+
+		public void action() {
+			if(inicio) {
+				System.out.println(getLocalName() + ": esperando solicitud de un cliente");
+				ACLMessage solicitud = blockingReceive(filtroAgente);
+
+				if(solicitud.getContent()!="") {
+					System.out.println(getLocalName() + ": solicitando movil: " + solicitud.getContent());
+					ACLMessage mensaje = new ACLMessage(ACLMessage.REQUEST);
+
+					numeroRespuestas = 4;
+					mensaje.addReceiver(new AID("ECI",AID.ISLOCALNAME));
+					mensaje.addReceiver(new AID("C",AID.ISLOCALNAME));
+					mensaje.addReceiver(new AID("MM",AID.ISLOCALNAME));
+					mensaje.addReceiver(new AID("W",AID.ISLOCALNAME));
+
+					mensaje.setProtocol(FIPANames.InteractionProtocol.FIPA_REQUEST);
+					mensaje.setContent(solicitud.getContent());
+
+					inicio = false;
+
+					myAgent.addBehaviour(new Manejador(myAgent,mensaje));
+					myAgent.addBehaviour(new ComportamientoCompararEnviar());
+				}
+				else {
+					ACLMessage respuesta = solicitud.createReply();
+					send(respuesta);
+					System.out.println(getLocalName() + ": no has introducido movil");
+				}
+			}
+		}
+	}
+
+	public class Manejador extends AchieveREInitiator {
+
+		public Manejador(Agent agente, ACLMessage mensaje) {
+			super(agente,mensaje);
+		}
+
+		protected void handleAgree(ACLMessage agree) {
+			System.out.println(agree.getSender().getLocalName() + ": procedera a buscar el movil en su web");
+		}
+
+		protected void handleNotUnderstood(ACLMessage notUnderstood){
+			numeroRespuestas--;
+			System.out.println(notUnderstood.getSender().getLocalName() + ": no ha entendido el mensaje");			
+		}
+
+		protected void handleRefuse(ACLMessage refuse) {
+			numeroRespuestas--;
+			System.out.println(refuse.getSender().getLocalName() + ": no procedera a buscar el movil");			
+		}
+
+		protected void handleInform(ACLMessage inform) {
+			numeroRespuestas--;
+			System.out.println(inform.getSender().getLocalName() + ": ha enviado la lista de moviles");
+			try {
+				todos.addAll((List<Movil>)inform.getContentObject());
+			} catch (Exception e) {
+				System.out.println(getLocalName() + ": error en lectura del mensaje con excepcion: " + e.toString());
+			}		
+		}
+
+		protected void handleFailure(ACLMessage failure) {
+			numeroRespuestas--;
+			System.out.println(failure.getSender().getLocalName() + ": no ha podido realizar la busqueda con exito");
+		}
+	}
+
+	private class ComportamientoCompararEnviar extends SimpleBehaviour {
+		boolean fin;
+
+		public void onStart() {
+		    	fin = false;
+		}
+
+		public void action() {
+			if(numeroRespuestas<=0) {
+				System.out.println(getLocalName() + ": comparar precio de moviles");
+
+				fin = true;
+
+				Movil movil = null;
+				for (int j = 0; j < todos.size(); j++) {
+					if (j == 0) {
+						movil = todos.get(j);
+					} else {
+						if ((double) todos.get(j).getPrecio() < movil.getPrecio()) {
+							movil = todos.get(j);
+						}
+					}
+				}
+				todos.clear();
+
+				System.out.println(getLocalName() + ": enviar respuesta a cliente");
+				ACLMessage enviarMovil = new ACLMessage(ACLMessage.INFORM);
+				enviarMovil.addReceiver(new AID("Cliente", AID.ISLOCALNAME));
+				try {
+					enviarMovil.setContentObject(movil);
+				} catch (Exception e) {
+					System.out.println(getLocalName() + ": error en lectura del mensaje con excepcion: " + e.toString());
+				}
+				send(enviarMovil);
+				inicio = true;
+			}
+		}
+
+		public boolean done() {
+			return fin;
+		}
+	}
+
+	protected void setup() {
+		todos = new ArrayList<Movil>();
+		addBehaviour(new ComportamientoSolicitud());
+	}
+}
+

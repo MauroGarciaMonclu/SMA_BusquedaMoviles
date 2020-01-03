@@ -1,0 +1,59 @@
+package SMA_BusquedaMoviles.dominio;
+
+import jade.core.Agent;
+import jade.core.AID;
+import jade.core.behaviours.OneShotBehaviour;
+import jade.lang.acl.ACLMessage;
+import jade.lang.acl.MessageTemplate;
+
+public class Cliente extends Agent {
+
+    	private class Comportamiento extends OneShotBehaviour {
+		String nombreMovil;
+		MessageTemplate filtroAgente;
+
+		public void onStart() {
+		    	filtroAgente = MessageTemplate.MatchSender(new AID("Buscador", AID.ISLOCALNAME));
+		}
+
+		public void action() {
+			ACLMessage mensaje = new ACLMessage(ACLMessage.REQUEST);
+			mensaje.setSender(getAID());
+			System.out.println(getLocalName() + ": preparandose para enviar un mensaje al Buscador");
+
+			mensaje.addReceiver(new AID("Buscador", AID.ISLOCALNAME));
+
+			nombreMovil = ((String)(getArguments()[0]));
+			for (int i = 1; i < getArguments().length; i++) {
+				nombreMovil += " " + ((String)(getArguments()[i]));
+			}
+			mensaje.setContent(nombreMovil);
+			System.out.println(getLocalName() + ": enviando el mensaje buscador del smartphone: " + nombreMovil);
+
+			send(mensaje);
+
+			ACLMessage respuesta = blockingReceive(filtroAgente);
+			System.out.println(getLocalName() + ": respuesta recibida");
+
+			try {
+				System.out.println(getLocalName() + ": " + ((Movil)respuesta.getContentObject()).getNombre()+ " mas barato lo vende la tienda " +((Movil)respuesta.getContentObject()).getTienda()+" con el precio: "+((Movil)respuesta.getContentObject()).getPrecio()+"\u20ac");
+			} catch (Exception e) {
+				System.out.println(getLocalName() + ": error en lectura del mensaje con excepcion: " + e.toString());
+			}
+		}
+
+		public int onEnd() {
+			doDelete();
+			return 0;
+		}
+	}
+
+	protected void setup() {
+		addBehaviour(new Comportamiento());
+	}
+
+	protected void takeDown() {
+		System.out.println("\n" + getLocalName() + ": liberando recursos\n");
+	}
+}
+
