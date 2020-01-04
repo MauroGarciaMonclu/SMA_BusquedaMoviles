@@ -1,7 +1,7 @@
 prepare:
 	cp jsoup-1.11.3.jar ../../lib/jsoup-1.11.3.jar
 	cp makefile ../../makefile
-	@echo "Muevase al directorio principal jade/ y ejecute los comandos 'export CLASSPATH=$CLASSPATH:./lib/jsoup-1.11.3.jar' y 'make compile'"
+	@echo "Muevase al directorio principal jade/ y ejecute los comandos 'export CLASSPATH=\$$CLASSPATH:./lib/jsoup-1.11.3.jar' y 'make compile'"
 compile:
 	javac -d classes/ src/SMA_BusquedaMoviles/dominio/*.java
 test:

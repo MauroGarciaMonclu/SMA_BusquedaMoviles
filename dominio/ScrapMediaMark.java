@@ -82,7 +82,6 @@ public class ScrapMediaMark extends Agent{
 					String nombre = elem.select("div.content").select("h2").select("a").text();
 					Matcher igual = patron.matcher(nombre);
 					if (igual.matches()) {
-						System.out.println(nombre+"  "+precio);
 						if (ScrapFunciones.AnadirMovil(nombre, nombre_movil)) {
 							Movil movil = new Movil(nombre, precio, "MediaMark");
 							listmoviles.add(movil);
